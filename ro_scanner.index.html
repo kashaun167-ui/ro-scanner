@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RO Scanner">
+<meta name="theme-color" content="#0f1923">
+<title>RO Scanner</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1923;
+  --surface: #1a2535;
+  --surface2: #212f42;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.15);
+  --text: #f0f4f8;
+  --muted: #7a8fa6;
+  --accent: #00d4ff;
+  --accent2: #0099bb;
+  --success: #00e676;
+  --warning: #ffb300;
+  --danger: #ff5252;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); }
+body { overflow-x: hidden; }
+
+.app { max-width: 430px; margin: 0 auto; padding: 0 0 2rem; min-height: 100vh; }
+
+/* Header */
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 0.5px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 10;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-icon {
+  width: 36px; height: 36px; background: var(--accent);
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.logo-text { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+.logo-sub { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+.conn-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 20px;
+  border: 0.5px solid var(--border2);
+  font-size: 12px; cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  transition: background 0.15s;
+}
+.conn-pill:hover { background: var(--surface); }
+.conn-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
+.conn-dot.on { background: var(--success); }
+
+/* Screens */
+.screen { display: none; padding: 1.25rem; }
+.screen.active { display: block; }
+
+/* Upload screen */
+.upload-area {
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 3rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.upload-area:hover, .upload-area.dragover {
+  border-color: var(--accent);
+  background: rgba(0,212,255,0.04);
+}
+.upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.cam-icon {
+  width: 64px; height: 64px; margin: 0 auto 1rem;
+  background: var(--surface2); border-radius: 18px;
+  display: flex; align-items: center; justify-content: center; font-size: 30px;
+}
+.upload-title { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+.upload-sub { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.upload-badges { display: flex; gap: 8px; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+.badge {
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 11px; font-family: 'DM Mono', monospace;
+  background: var(--surface2); color: var(--muted);
+  border: 0.5px solid var(--border);
+}
+
+.preview-wrap { margin-top: 1rem; position: relative; }
+.preview-img { width: 100%; border-radius: var(--radius-sm); max-height: 220px; object-fit: cover; display: block; }
+.preview-change {
+  position: absolute; bottom: 8px; right: 8px;
+  background: rgba(0,0,0,0.7); color: #fff; border: none;
+  padding: 5px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.scan-btn {
+  width: 100%; margin-top: 1rem; padding: 15px;
+  background: var(--accent); color: #000;
+  border: none; border-radius: var(--radius);
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: opacity 0.15s, transform 0.1s;
+  letter-spacing: -0.01em;
+}
+.scan-btn:hover { opacity: 0.9; }
+.scan-btn:active { transform: scale(0.98); }
+.scan-btn:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; transform: none; }
+
+/* RO Picker */
+.picker-title { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+.picker-sub { font-size: 13px; color: var(--muted); margin-bottom: 1.25rem; }
+.ro-card {
+  background: var(--surface); border: 0.5px solid var(--border2);
+  border-radius: var(--radius); padding: 1rem 1.1rem;
+  margin-bottom: 10px; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  display: flex; align-items: center; gap: 12px;
+}
+.ro-card:hover { border-color: var(--accent); background: rgba(0,212,255,0.04); }
+.ro-card-num {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: var(--surface2); display: flex; align-items: center;
+  justify-content: center; font-size: 16px; font-weight: 600;
+  color: var(--accent); font-family: 'DM Mono', monospace; flex-shrink: 0;
+}
+.ro-card-info { flex: 1; min-width: 0; }
+.ro-card-vehicle { font-size: 14px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ro-card-meta { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+.ro-card-arrow { color: var(--muted); font-size: 18px; }
+
+/* Loading */
+.loading-screen { text-align: center; padding: 4rem 1.25rem; }
+.pulse-ring {
+  width: 80px; height: 80px; margin: 0 auto 1.5rem;
+  border-radius: 50%; background: rgba(0,212,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.pulse-ring svg { animation: spin 1s linear infinite; }
+@keyframes pulse { 0%,100%{ box-shadow:0 0 0 0 rgba(0,212,255,0.3) } 50%{ box-shadow:0 0 0 16px rgba(0,212,255,0) } }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.loading-sub { font-size: 13px; color: var(--muted); }
+
+/* Form screen */
+.section-head {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  margin: 1.25rem 0 0.75rem; padding-bottom: 6px;
+  border-bottom: 0.5px solid var(--border);
+}
+.section-head:first-child { margin-top: 0; }
+
+.fg { margin-bottom: 10px; }
+.fg label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; font-family: 'DM Mono', monospace; }
+.fg input, .fg textarea, .fg select {
+  width: 100%; padding: 10px 12px;
+  background: var(--surface); border: 0.5px solid var(--border2);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: 14px; font-family: 'DM Sans', sans-serif;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.fg input:focus, .fg textarea:focus, .fg select:focus {
+  outline: none; border-color: var(--accent);
+}
+.fg textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
+.fg select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a8fa6' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+.submit-btn {
+  width: 100%; margin-top: 1.25rem; padding: 15px;
+  background: var(--accent); color: #000;
+  border: none; border-radius: var(--radius);
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: opacity 0.15s, transform 0.1s;
+  letter-spacing: -0.01em;
+}
+.submit-btn:hover { opacity: 0.9; }
+.submit-btn:active { transform: scale(0.98); }
+.submit-btn:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; transform: none; }
+
+/* Success */
+.success-screen { text-align: center; padding: 3rem 1.25rem; }
+.success-icon {
+  width: 80px; height: 80px; margin: 0 auto 1.5rem;
+  background: rgba(0,230,118,0.1); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px;
+  animation: pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+@keyframes pop { 0%{ transform:scale(0.5);opacity:0 } 100%{ transform:scale(1);opacity:1 } }
+.success-title { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+.success-meta {
+  font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted);
+  background: var(--surface); padding: 10px 16px; border-radius: var(--radius-sm);
+  margin: 1rem 0 1.5rem; text-align: left; line-height: 1.8;
+}
+.new-btn {
+  width: 100%; padding: 14px;
+  background: transparent; color: var(--text);
+  border: 0.5px solid var(--border2); border-radius: var(--radius);
+  font-size: 15px; font-weight: 500; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: background 0.15s;
+}
+.new-btn:hover { background: var(--surface); }
+
+/* Settings modal */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); z-index: 100;
+  align-items: flex-end; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border-radius: var(--radius) var(--radius) 0 0;
+  padding: 1.5rem; width: 100%; max-width: 430px;
+  animation: slideUp 0.25s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-title { font-size: 16px; font-weight: 600; margin-bottom: 1rem; }
+.modal input {
+  width: 100%; padding: 10px 12px;
+  background: var(--bg); border: 0.5px solid var(--border2);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: 13px; font-family: 'DM Mono', monospace;
+  margin-bottom: 8px;
+}
+.modal input:focus { outline: none; border-color: var(--accent); }
+.modal-hint { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 1rem; }
+.modal-hint code { color: var(--accent); font-family: 'DM Mono', monospace; font-size: 11px; }
+.modal-btns { display: flex; gap: 10px; }
+.modal-btns button {
+  flex: 1; padding: 12px;
+  border-radius: var(--radius-sm); font-size: 14px; font-weight: 500;
+  cursor: pointer; font-family: 'DM Sans', sans-serif; border: none;
+  transition: opacity 0.15s;
+}
+.btn-save { background: var(--accent); color: #000; }
+.btn-cancel { background: var(--surface2); color: var(--muted); }
+.btn-save:hover, .btn-cancel:hover { opacity: 0.85; }
+
+.install-banner {
+  margin: 1rem 1.25rem 0;
+  background: var(--surface2); border: 0.5px solid var(--border2);
+  border-radius: var(--radius); padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.install-banner-text { flex: 1; }
+.install-banner-text p { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.install-banner-text span { font-size: 11px; color: var(--muted); }
+.install-btn {
+  padding: 7px 14px; background: var(--accent); color: #000;
+  border: none; border-radius: 20px; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; font-family: 'DM Sans', sans-serif;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <div class="logo">
+      <div class="logo-icon">🔧</div>
+      <div>
+        <div class="logo-text">RO Scanner</div>
+        <div class="logo-sub">diag time logger</div>
+      </div>
+    </div>
+    <div class="conn-pill" onclick="openSettings()">
+      <div class="conn-dot" id="connDot"></div>
+      <span id="connLabel">Connect Sheet</span>
+    </div>
+  </div>
+
+  <!-- Install banner -->
+  <div class="install-banner" id="installBanner" style="display:none">
+    <div class="install-banner-text">
+      <p>Add to Home Screen</p>
+      <span>Tap Share → Add to Home Screen</span>
+    </div>
+    <button class="install-btn" onclick="document.getElementById('installBanner').style.display='none'">Got it</button>
+  </div>
+
+  <!-- Upload screen -->
+  <div class="screen active" id="screenUpload">
+    <div style="height:1rem"></div>
+    <div class="upload-area" id="uploadArea">
+      <input type="file" accept="image/*" capture="environment" id="fileInput" onchange="handleFile(this)">
+      <div class="cam-icon">📷</div>
+      <div class="upload-title">Scan Repair Order</div>
+      <div class="upload-sub">Take a photo or upload an image of the RO slip — AI extracts all the details automatically</div>
+      <div class="upload-badges">
+        <span class="badge">RO slip</span>
+        <span class="badge">Work order</span>
+        <span class="badge">Repair order</span>
+      </div>
+    </div>
+
+    <div class="preview-wrap" id="previewWrap" style="display:none">
+      <img id="previewImg" class="preview-img">
+      <button class="preview-change" onclick="changePhoto()">Change photo</button>
+    </div>
+
+    <button class="scan-btn" id="scanBtn" disabled onclick="scanRO()">Scan with AI</button>
+  </div>
+
+  <!-- Loading screen -->
+  <div class="screen" id="screenLoading">
+    <div class="loading-screen">
+      <div class="pulse-ring">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="13" stroke="rgba(0,212,255,0.2)" stroke-width="2.5"/>
+          <path d="M16 3 A13 13 0 0 1 29 16" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="loading-title">Reading your RO...</div>
+      <div class="loading-sub">AI is extracting vehicle info, codes, and mileage</div>
+    </div>
+  </div>
+
+  <!-- Picker screen -->
+  <div class="screen" id="screenPicker">
+    <div style="height:1rem"></div>
+    <div class="picker-title">Multiple ROs detected</div>
+    <div class="picker-sub">Which one do you want to log?</div>
+    <div id="roCardList"></div>
+  </div>
+
+  <!-- Form screen -->
+  <div class="screen" id="screenForm">
+    <div class="section-head">Vehicle</div>
+    <div class="row3">
+      <div class="fg"><label>Year</label><input type="text" id="f_year" placeholder="2015"></div>
+      <div class="fg"><label>Make</label><input type="text" id="f_make" placeholder="Chevy"></div>
+      <div class="fg"><label>Model</label><input type="text" id="f_model" placeholder="Trax"></div>
+    </div>
+    <div class="row2">
+      <div class="fg"><label>VIN (last 8)</label><input type="text" id="f_vin" placeholder="A1234567" maxlength="8"></div>
+      <div class="fg"><label>Mileage</label><input type="number" id="f_mileage" placeholder="87432"></div>
+    </div>
+
+    <div class="section-head">Order Info</div>
+    <div class="row2">
+      <div class="fg"><label>Date</label><input type="date" id="f_date"></div>
+      <div class="fg"><label>RO #</label><input type="text" id="f_ro" placeholder="RO-1042"></div>
+    </div>
+    <div class="fg"><label>Customer</label><input type="text" id="f_customer" placeholder="John Smith"></div>
+    <div class="fg"><label>Complaint / Codes</label><textarea id="f_complaint" placeholder="No start, P0641, long crank..."></textarea></div>
+
+    <div class="section-head">Time & Status</div>
+    <div class="row3">
+      <div class="fg"><label>Start</label><input type="time" id="f_start"></div>
+      <div class="fg"><label>End</label><input type="time" id="f_end"></div>
+      <div class="fg"><label>Billable Hrs</label><input type="number" id="f_billable" step="0.25" placeholder="2.0"></div>
+    </div>
+    <div class="row2">
+      <div class="fg"><label>Status</label>
+        <select id="f_status">
+          <option>In Progress</option>
+          <option>Complete</option>
+          <option>Pending</option>
+        </select>
+      </div>
+      <div class="fg"><label>Scanner</label>
+        <select id="f_scanner">
+          <option>Topdon</option>
+          <option>Autel</option>
+          <option>Snap-on</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section-head">Notes</div>
+    <div class="fg"><label>Result / Findings</label><textarea id="f_notes" placeholder="Root cause, parts needed, next steps..."></textarea></div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitToSheet()">Log to Google Sheet →</button>
+  </div>
+
+  <!-- Success screen -->
+  <div class="screen" id="screenSuccess">
+    <div class="success-screen">
+      <div class="success-icon">✓</div>
+      <div class="success-title">Logged!</div>
+      <div class="success-meta" id="successMeta"></div>
+      <button class="new-btn" onclick="resetApp()">Scan another RO</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="settingsModal" onclick="closeSettingsOutside(event)">
+  <div class="modal">
+    <div class="modal-title">Connect Google Sheet</div>
+    <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/.../exec">
+    <div class="modal-hint">
+      Paste your Google Apps Script deployment URL.<br>
+      In your Sheet: <code>Extensions → Apps Script → Deploy → Web App</code><br>
+      Set access to <code>Anyone</code> and copy the URL.
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
+      <button class="btn-save" onclick="saveSettings()">Save & Connect</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let imageBase64 = null;
+let scriptUrl = localStorage.getItem('roScriptUrl') || '';
+
+function init(){
+  if(scriptUrl){
+    document.getElementById('scriptUrl').value = scriptUrl;
+    setConnected(true);
+  }
+  // Show install banner on mobile after 2s
+  setTimeout(()=>{
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const dismissed = localStorage.getItem('installDismissed');
+    if(isMobile && !dismissed) document.getElementById('installBanner').style.display='flex';
+  }, 2000);
+  document.getElementById('installBanner').querySelector('.install-btn').onclick = ()=>{
+    localStorage.setItem('installDismissed','1');
+    document.getElementById('installBanner').style.display='none';
+  };
+}
+
+function setConnected(on){
+  document.getElementById('connDot').className = 'conn-dot' + (on?' on':'');
+  document.getElementById('connLabel').textContent = on ? 'Connected' : 'Connect Sheet';
+}
+
+function openSettings(){ document.getElementById('settingsModal').classList.add('open'); }
+function closeSettings(){ document.getElementById('settingsModal').classList.remove('open'); }
+function closeSettingsOutside(e){ if(e.target===document.getElementById('settingsModal')) closeSettings(); }
+
+function saveSettings(){
+  const url = document.getElementById('scriptUrl').value.trim();
+  if(!url){ alert('Please paste your Apps Script URL'); return; }
+  scriptUrl = url;
+  localStorage.setItem('roScriptUrl', scriptUrl);
+  setConnected(true);
+  closeSettings();
+}
+
+function handleFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    imageBase64 = dataUrl.split(',')[1];
+    document.getElementById('previewImg').src = dataUrl;
+    document.getElementById('previewWrap').style.display = 'block';
+    document.getElementById('uploadArea').style.display = 'none';
+    document.getElementById('scanBtn').disabled = false;
+    document.getElementById('scanBtn').textContent = 'Scan with AI →';
+  };
+  reader.readAsDataURL(file);
+}
+
+function changePhoto(){
+  imageBase64 = null;
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('uploadArea').style.display = 'block';
+  document.getElementById('scanBtn').disabled = true;
+  document.getElementById('scanBtn').textContent = 'Scan with AI';
+  document.getElementById('fileInput').value = '';
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+async function scanRO(){
+  if(!imageBase64) return;
+  showScreen('screenLoading');
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:2000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:imageBase64}},
+          {type:'text',text:`Look at this image. Count how many separate repair orders (ROs) or work orders are visible.
+Respond ONLY with valid JSON, no markdown, no extra text.
+If ONE RO: {"count":1,"ros":[{"date":"YYYY-MM-DD default ${today}","ro_number":"","year":"","make":"","model":"","vin":"last 8 chars only","mileage":"number only no commas","customer":"","complaint":"complaint and fault codes"}]}
+If MULTIPLE ROs: {"count":2,"ros":[{first RO fields...},{second RO fields...}]}
+Use empty string for any field not found. Always return a "ros" array even for one RO.`}
+        ]}]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content.map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
+    const result = JSON.parse(raw);
+    const ros = result.ros || [result];
+
+    if(ros.length > 1){
+      showPicker(ros);
+    } else {
+      fillForm(ros[0], today);
+      showScreen('screenForm');
+    }
+  } catch(err){
+    showScreen('screenUpload');
+    alert('Could not read the RO — try a clearer, well-lit photo.');
+    console.error(err);
+  }
+}
+
+function showPicker(ros){
+  const list = document.getElementById('roCardList');
+  list.innerHTML = '';
+  ros.forEach((ro, i) => {
+    const card = document.createElement('div');
+    card.className = 'ro-card';
+    const vehicle = [ro.year, ro.make, ro.model].filter(Boolean).join(' ') || 'Unknown Vehicle';
+    const meta = [ro.ro_number ? 'RO# '+ro.ro_number : '', ro.mileage ? ro.mileage+' mi' : '', ro.customer].filter(Boolean).join(' · ');
+    card.innerHTML = `
+      <div class="ro-card-num">${i+1}</div>
+      <div class="ro-card-info">
+        <div class="ro-card-vehicle">${vehicle}</div>
+        <div class="ro-card-meta">${meta || 'Tap to review'}</div>
+      </div>
+      <div class="ro-card-arrow">›</div>`;
+    card.onclick = () => {
+      const today = new Date().toISOString().split('T')[0];
+      fillForm(ro, today);
+      showScreen('screenForm');
+    };
+    list.appendChild(card);
+  });
+  showScreen('screenPicker');
+}
+
+function fillForm(p, today){
+  document.getElementById('f_date').value     = p.date||today;
+  document.getElementById('f_ro').value       = p.ro_number||'';
+  document.getElementById('f_year').value     = p.year||'';
+  document.getElementById('f_make').value     = p.make||'';
+  document.getElementById('f_model').value    = p.model||'';
+  document.getElementById('f_vin').value      = p.vin||'';
+  document.getElementById('f_mileage').value  = p.mileage||'';
+  document.getElementById('f_customer').value = p.customer||'';
+  document.getElementById('f_complaint').value= p.complaint||'';
+  const now = new Date();
+  document.getElementById('f_start').value =
+    now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+}
+
+async function submitToSheet(){
+  if(!scriptUrl){ openSettings(); return; }
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+
+  const start = document.getElementById('f_start').value;
+  const end   = document.getElementById('f_end').value;
+  let hrs = '';
+  if(start && end){
+    const [sh,sm]=start.split(':').map(Number);
+    const [eh,em]=end.split(':').map(Number);
+    hrs = ((eh*60+em-sh*60-sm)/60).toFixed(2);
+  }
+
+  const row=[
+    document.getElementById('f_date').value,
+    document.getElementById('f_year').value,
+    document.getElementById('f_make').value,
+    document.getElementById('f_model').value,
+    document.getElementById('f_vin').value,
+    document.getElementById('f_mileage').value,
+    document.getElementById('f_ro').value,
+    document.getElementById('f_customer').value,
+    document.getElementById('f_complaint').value,
+    start, end, hrs,
+    document.getElementById('f_billable').value,
+    'K. Williams',
+    document.getElementById('f_scanner').value,
+    document.getElementById('f_notes').value,
+    document.getElementById('f_status').value
+  ];
+
+  try {
+    const res = await fetch(scriptUrl,{method:'POST',body:JSON.stringify({row})});
+    const result = await res.json();
+    if(result.status==='success'){
+      const yr=document.getElementById('f_year').value;
+      const mk=document.getElementById('f_make').value;
+      const mo=document.getElementById('f_model').value;
+      const mi=document.getElementById('f_mileage').value;
+      const ro=document.getElementById('f_ro').value;
+      document.getElementById('successMeta').innerHTML =
+        `Vehicle: ${yr} ${mk} ${mo}\nMileage: ${mi} mi\nRO: ${ro}\nHours: ${hrs||'—'}\nStatus: ${document.getElementById('f_status').value}`.split('\n').join('<br>');
+      showScreen('screenSuccess');
+    } else { throw new Error(result.error||'Unknown error'); }
+  } catch(err){
+    btn.disabled=false; btn.textContent='Log to Google Sheet →';
+    alert('Could not submit. Check your Script URL.\n\n'+err.message);
+  }
+}
+
+function resetApp(){
+  imageBase64=null;
+  document.getElementById('fileInput').value='';
+  document.getElementById('previewWrap').style.display='none';
+  document.getElementById('uploadArea').style.display='block';
+  document.getElementById('scanBtn').disabled=true;
+  document.getElementById('scanBtn').textContent='Scan with AI';
+  document.getElementById('submitBtn').disabled=false;
+  document.getElementById('submitBtn').textContent='Log to Google Sheet →';
+  showScreen('screenUpload');
+}
+
+init();
+</script>
+</body>
+</html>
